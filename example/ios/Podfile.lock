@@ -8,6 +8,7 @@ PODS:
 DEPENDENCIES:
   - Flutter (from `Flutter`)
   - marketing_cloud_messaging (from `.symlinks/plugins/marketing_cloud_messaging/ios`)
+  - MarketingCloudSDK (~> 6.4)
 
 SPEC REPOS:
   trunk:
@@ -24,6 +25,6 @@ SPEC CHECKSUMS:
   marketing_cloud_messaging: 71ced5c9bd2ab6bd041c2ee63b33738c35b76e5e
   MarketingCloudSDK: 78bdce808556398b0f15e971a03002803a029502
 
-PODFILE CHECKSUM: 9ec0b926d741f3b13993aceabf2687bc78d2468b
+PODFILE CHECKSUM: 7df8fa1be93a5a8e865c4927cdbacf7cf6dbe2db
 
 COCOAPODS: 1.8.4

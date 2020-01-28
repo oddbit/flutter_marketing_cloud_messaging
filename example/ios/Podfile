@@ -36,6 +36,8 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  pod 'MarketingCloudSDK', '~> 6.4'
+
   # Flutter Pod
 
   copied_flutter_dir = File.join(__dir__, 'Flutter')

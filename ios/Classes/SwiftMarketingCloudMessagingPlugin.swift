@@ -41,10 +41,10 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
         if (call.method == "requestNotificationPermissions") {
             let registeredToMarketingCloud = self.configureMarketingCloudSDK()
             
-            if (registeredToMarketingCloud.result) {
+            if (registeredToMarketingCloud) {
                 result(FlutterError(code: String(format: "Error %ld", 897),
                                     message: "Failed to register with marketing cloud",
-                                    details: registeredToMarketingCloud.msg))
+                                    details: "MarketingCloudSDK sfmc_configure failed with error"))
                 return
             }
             
@@ -167,7 +167,7 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
                             details: error?.localizedDescription)
     }
     
-    private func configureMarketingCloudSDK() -> (result: Bool, msg: String) {
+    private func configureMarketingCloudSDK() -> Bool {
         let builder = MarketingCloudSDKConfigBuilder()
 
         builder.sfmc_setApplicationId(appID)
@@ -196,7 +196,7 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
         MarketingCloudSDK.sharedInstance().sfmc_setDebugLoggingEnabled(true)
         #endif
         
-        return (result, msg)
+        return result
     }
     
     // MARK: - app delegate
