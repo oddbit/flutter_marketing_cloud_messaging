@@ -1,0 +1,29 @@
+PODS:
+  - Flutter (1.0.0)
+  - marketing_cloud_messaging (0.0.1):
+    - Flutter
+    - MarketingCloudSDK (~> 6.4)
+  - MarketingCloudSDK (6.4.2)
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - marketing_cloud_messaging (from `.symlinks/plugins/marketing_cloud_messaging/ios`)
+
+SPEC REPOS:
+  trunk:
+    - MarketingCloudSDK
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  marketing_cloud_messaging:
+    :path: ".symlinks/plugins/marketing_cloud_messaging/ios"
+
+SPEC CHECKSUMS:
+  Flutter: 0e3d915762c693b495b44d77113d4970485de6ec
+  marketing_cloud_messaging: 71ced5c9bd2ab6bd041c2ee63b33738c35b76e5e
+  MarketingCloudSDK: 78bdce808556398b0f15e971a03002803a029502
+
+PODFILE CHECKSUM: 9ec0b926d741f3b13993aceabf2687bc78d2468b
+
+COCOAPODS: 1.8.4
