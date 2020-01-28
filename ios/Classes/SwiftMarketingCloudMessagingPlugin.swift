@@ -3,17 +3,30 @@ import UIKit
 import UserNotifications
 import MarketingCloudSDK
 
+public struct MarketingCloudConfig: Codable {
+    var appID: String
+    var accessToken: String
+    var appEndpoint: String
+    var mid: String
+}
+
+public class MarketingCloudConfigReader {
+    public func read(name: String) -> MarketingCloudConfig {
+        if  let path = Bundle.main.path(forResource: "MC-CONFIG-\(name)", ofType: "plist"),
+            let xml = FileManager.default.contents(atPath: path),
+            let preferences = try? PropertyListDecoder().decode(MarketingCloudConfig.self, from: xml) {
+            return preferences
+        }
+        
+        return MarketingCloudConfig(appID: "", accessToken: "", appEndpoint: "", mid: "")
+    }
+}
+
 public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
     #if DEBUG
-    let appID = ""
-    let accessToken = ""
-    let appEndpoint = ""
-    let mid = ""
+    let mcConfig = MarketingCloudConfigReader().read(name: "DEV")
     #else
-    let appID = ""
-    let accessToken = ""
-    let appEndpoint = ""
-    let mid = ""
+    let mcConfig = MarketingCloudConfigReader().read(name: "PROD")
     #endif
     
     let inbox = true
@@ -22,6 +35,7 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
     let piAnalytics = true
     
     private var channel: FlutterMethodChannel?
+    private var resumingFromBackground: Bool = false
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "marketing_cloud_messaging", binaryMessenger: registrar.messenger())
@@ -40,8 +54,10 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
         
         if (call.method == "requestNotificationPermissions") {
             let registeredToMarketingCloud = self.configureMarketingCloudSDK()
-            
-            if (registeredToMarketingCloud) {
+
+            logMessage("requestNotificationPermissions registeredToMC: \(registeredToMarketingCloud)")
+
+            if (!registeredToMarketingCloud) {
                 result(FlutterError(code: String(format: "Error %ld", 897),
                                     message: "Failed to register with marketing cloud",
                                     details: "MarketingCloudSDK sfmc_configure failed with error"))
@@ -51,7 +67,7 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
             let arguments = args as? Dictionary<String, Any>
             
             if #available(iOS 10.0, *) {
-                print("MARKETING_CLOUD: request ios > 10")
+                logMessage("request ios > 10")
                 
                 var authOptions: UNAuthorizationOptions = []
                 let provisional = (arguments?["provisional"] as? Bool) ?? false
@@ -89,14 +105,14 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
                 
                 center.requestAuthorization(options: authOptions, completionHandler: { granted, error in
                     if error != nil {
-                        print("Something went wrong, error found")
+                        self.logMessage("Something went wrong, error found")
                         result(self.getFlutterError(error))
                         
                         return
                     }
                     
                     if !granted {
-                        print("Something went wrong, permission not granted")
+                        self.logMessage("Something went wrong, permission not granted")
                         result(self.getFlutterError(error))
                         
                         return
@@ -104,10 +120,10 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
                         let deviceToken = MarketingCloudSDK.sharedInstance().sfmc_deviceToken()
 
                         if deviceToken == nil {
-                            print("error: no token - was UIApplication.shared.registerForRemoteNotifications() called?")
+                            self.logMessage("error: no token - was UIApplication.shared.registerForRemoteNotifications() called?")
                         } else {
-                            let token = deviceToken ?? ""
-                            print("success: token - was \(token)")
+                            let token = deviceToken ?? "** empty **"
+                            self.logMessage("success: token - was \(token)")
                         }
                     }
 
@@ -129,7 +145,7 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
                 
                 UIApplication.shared.registerForRemoteNotifications()
             } else {
-                print("MARKETING_CLOUD: request ios < 10")
+                logMessage("request ios < 10")
                 var notificationTypes = UIUserNotificationType(rawValue: 0)
                 let soundSelected = (arguments?["sound"] as? Bool) ?? false
                 let alertSelected = (arguments?["alert"] as? Bool) ?? false
@@ -170,10 +186,10 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
     private func configureMarketingCloudSDK() -> Bool {
         let builder = MarketingCloudSDKConfigBuilder()
 
-        builder.sfmc_setApplicationId(appID)
-        builder.sfmc_setAccessToken(accessToken)
-        builder.sfmc_setMarketingCloudServerUrl(appEndpoint)
-        builder.sfmc_setMid(mid)
+        builder.sfmc_setApplicationId(mcConfig.appID)
+        builder.sfmc_setAccessToken(mcConfig.accessToken)
+        builder.sfmc_setMarketingCloudServerUrl(mcConfig.appEndpoint)
+        builder.sfmc_setMid(mcConfig.mid)
         builder.sfmc_setInboxEnabled(NSNumber(value: inbox))
         builder.sfmc_setLocationEnabled(NSNumber(value: location))
         builder.sfmc_setAnalyticsEnabled(NSNumber(value: pushAnalytics))
@@ -189,7 +205,7 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
             // Errors returned from configuration will be in the NSError parameter and can be used to determine
             // if you've implemented the SDK correctly.
             msg = String(format: "MarketingCloudSDK sfmc_configure failed with error = %@", error)
-            print(msg)
+            logMessage(msg)
         }
         
         #if DEBUG
@@ -205,7 +221,7 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
     }
     
     public func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("\(error.localizedDescription)")
+        logMessage("\(error.localizedDescription)")
     }
     
     // MobilePush SDK: REQUIRED IMPLEMENTATION
@@ -214,14 +230,30 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) {
         MarketingCloudSDK.sharedInstance().sfmc_setNotificationUserInfo(userInfo)
 
+        if (resumingFromBackground) {
+            channel?.invokeMethod("onResume", arguments: userInfo)
+        } else {
+            channel?.invokeMethod("onMessage", arguments: userInfo)
+        }
+
         for key in userInfo.keys {
             guard let key = key as? String else {
                 continue
             }
             if let object = userInfo[key] {
-                print("property value: \(object)")
+                logMessage("property value: \(object)")
             }
         }
+    }
+
+    public func applicationDidEnterBackground(_ application: UIApplication) {
+        resumingFromBackground = true
+    }
+
+    public func applicationDidBecomeActive(_ application: UIApplication) {
+        resumingFromBackground = false
+        application.applicationIconBadgeNumber = 1
+        application.applicationIconBadgeNumber = 0
     }
     
     // MobilePush SDK: REQUIRED IMPLEMENTATION
@@ -242,4 +274,9 @@ public class SwiftMarketingCloudMessagingPlugin: NSObject, FlutterPlugin {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler(UNNotificationPresentationOptions.alert)
     }
+
+    private func logMessage(_ s: String) {
+        print("MC: \(s)")
+    }
 }
+
