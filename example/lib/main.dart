@@ -6,6 +6,25 @@ import 'package:marketing_cloud_messaging/marketing_cloud_messaging.dart';
 
 void main() => runApp(MyApp());
 
+Future<dynamic> _myBackgroundMessageHandler(Map<String, dynamic> message) {
+  if (message.containsKey('data')) {
+    // Handle data message
+    final dynamic data = message['data'];
+
+    return Future.value(data);
+  }
+
+  if (message.containsKey('notification')) {
+    // Handle notification message
+    final dynamic notification = message['notification'];
+
+    return Future.value(notification);
+  }
+
+  // Or do other work.
+  return Future.value(null);
+}
+
 class MyApp extends StatefulWidget {
   @override
   _MyAppState createState() => _MyAppState();
@@ -24,19 +43,21 @@ class _MyAppState extends State<MyApp> {
   Future<void> initPlatformState() async {
     // Platform messages may fail, so we use a try/catch PlatformException.
     try {
-      await marketingCloudMessaging.requestNotificationPermissions();
-      marketingCloudMessaging.configure(
-        onMessage: (Map<String, dynamic> message) async {
-          print("onMessage: $message");
-        },
-        onBackgroundMessage: _myBackgroundMessageHandler,
-        onLaunch: (Map<String, dynamic> message) async {
-          print("onLaunch: $message");
-        },
-        onResume: (Map<String, dynamic> message) async {
-          print("onResume: $message");
-        },
-      );
+      bool permitted = await marketingCloudMessaging.requestNotificationPermissions();
+
+      if (permitted) {
+        marketingCloudMessaging.configure(
+          onMessage: (Map<String, dynamic> message) async {
+            print("onMessage: $message");
+          },
+          onLaunch: (Map<String, dynamic> message) async {
+            print("onLaunch: $message");
+          },
+          onResume: (Map<String, dynamic> message) async {
+            print("onResume: $message");
+          },
+        );
+      }
     } on PlatformException {
       print('Platform exception occurred');
     }
@@ -49,25 +70,6 @@ class _MyAppState extends State<MyApp> {
     setState(() {
 
     });
-  }
-
-  Future<dynamic> _myBackgroundMessageHandler(Map<String, dynamic> message) {
-    if (message.containsKey('data')) {
-      // Handle data message
-      final dynamic data = message['data'];
-
-      return Future.value(data);
-    }
-
-    if (message.containsKey('notification')) {
-      // Handle notification message
-      final dynamic notification = message['notification'];
-
-      return Future.value(notification);
-    }
-
-    // Or do other work.
-    return Future.value(null);
   }
 
   @override
